@@ -14,9 +14,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -52,20 +50,26 @@ public class TrendingLanguages {
                 entity,
                 SearchRepoResponseDto.class);
 
-        if (response.hasBody()) {
-            Map<String, List<ItemDto>> map = Objects.requireNonNull(response.getBody())
-                    .getItems()
-                    .stream()
-                    .filter(itemDto -> itemDto.getLanguage() != null)
-                    .collect(Collectors.groupingBy(ItemDto::getLanguage));
+        if (response.getBody() != null) {
+            Map<String, List<String>> map =
+                    response.getBody()
+                            .getItems()
+                            .stream()
+                            .filter(itemDto -> itemDto.getLanguage() != null)
+                            .collect(Collectors.groupingBy(ItemDto::getLanguage, Collectors.mapping(ItemDto::getHtmlUrl, Collectors.toList())));
 
-            List<TrendingLanguageDto> trendingLanguageList = map.keySet().stream().map(key -> {
-                TrendingLanguageDto dto = new TrendingLanguageDto();
-                dto.setLanguage(key);
-                dto.setOccurrences(map.get(key).size());
-                dto.setRepositories(map.get(key).stream().map(ItemDto::getHtmlUrl).collect(Collectors.toList()));
-                return dto;
-            }).collect(Collectors.toList());
+            List<TrendingLanguageDto> trendingLanguageList =
+                    map.keySet()
+                            .stream()
+                            .map(key -> {
+                                TrendingLanguageDto dto = new TrendingLanguageDto();
+                                dto.setLanguage(key);
+                                dto.setOccurrences(map.get(key).size());
+                                dto.setRepositories(map.get(key));
+                                return dto;
+                            })
+                            .sorted(Comparator.comparingInt(TrendingLanguageDto::getOccurrences).reversed())
+                            .collect(Collectors.toList());
 
             return new ResponseEntity<>(trendingLanguageList, HttpStatus.OK);
         }
